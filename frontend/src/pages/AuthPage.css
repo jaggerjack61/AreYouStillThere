@@ -1,0 +1,134 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f7f6;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 48px 40px;
+  background: #fff;
+  border: 1px solid #e8e5e1;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.auth-brand {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.auth-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  color: #e85d3a;
+}
+
+.auth-brand h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 22px;
+  color: #1a1a1a;
+  margin: 0 0 4px;
+  letter-spacing: -0.3px;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: #8c8680;
+  margin: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-label span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a4540;
+  letter-spacing: 0.2px;
+}
+
+.auth-label input {
+  padding: 10px 14px;
+  border: 1px solid #ddd8d3;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  color: #1a1a1a;
+  background: #fafaf9;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.auth-label input:focus {
+  outline: none;
+  border-color: #e85d3a;
+  box-shadow: 0 0 0 3px rgba(232, 93, 58, 0.08);
+}
+
+.auth-submit {
+  margin-top: 6px;
+  padding: 11px 20px;
+  background: #e85d3a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: #d14e2e;
+}
+
+.auth-submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-error {
+  padding: 10px 14px;
+  background: #fef2f0;
+  border: 1px solid #f5c6bc;
+  border-radius: 8px;
+  color: #b33a20;
+  font-size: 13px;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 13px;
+  color: #8c8680;
+}
+
+.auth-link a {
+  color: #e85d3a;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-link a:hover {
+  text-decoration: underline;
+}
