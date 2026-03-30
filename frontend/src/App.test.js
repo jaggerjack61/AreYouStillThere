@@ -15,7 +15,7 @@ test('shows request logs navigation when authenticated', () => {
 
   render(<App />);
 
-  expect(screen.getByText('Request Logs')).toBeInTheDocument();
+  expect(screen.getAllByRole('link', { name: 'Request Logs' }).length).toBeGreaterThan(0);
 
   localStorage.clear();
 });

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import {
   RESULT_FILTER_OPTIONS,
   SORT_DIRECTION_OPTIONS,
@@ -5,33 +7,29 @@ import {
 } from './constants';
 
 function SelectField({ children, label, value, onChange }) {
+  const selectId = useId();
+
   return (
-    <label className="filter-field request-logs-field">
+    <label className="form-field filter-field request-logs-field" htmlFor={selectId}>
       <span>{label}</span>
-      <div className="request-logs-control-shell request-logs-select-shell">
-        <select aria-label={label} value={value} onChange={onChange}>
-          {children}
-        </select>
-        <span className="request-logs-select-chevron" aria-hidden="true">▾</span>
-      </div>
+      <select id={selectId} aria-label={label} value={value} onChange={onChange}>
+        {children}
+      </select>
     </label>
   );
 }
 
 function SearchField({ value, onChange }) {
   return (
-    <label className="filter-field request-logs-field request-logs-search-field">
+    <label className="form-field filter-field request-logs-field request-logs-search-field">
       <span>Search</span>
-      <div className="request-logs-control-shell request-logs-search-shell">
-        <span className="request-logs-search-icon" aria-hidden="true">⌕</span>
-        <input
-          aria-label="Search"
-          type="search"
-          value={value}
-          onChange={onChange}
-          placeholder="Search previews, errors, reasons, or services"
-        />
-      </div>
+      <input
+        aria-label="Search"
+        type="search"
+        value={value}
+        onChange={onChange}
+        placeholder="Search previews, errors, reasons, or services"
+      />
     </label>
   );
 }

@@ -178,14 +178,14 @@ export default function ServiceDetailPage() {
             <tbody>
               {incidents.slice(0, 10).map((inc) => (
                 <tr key={inc.id}>
-                  <td>
+                  <td data-label="Status">
                     <span className={`badge badge-${inc.status === 'OPEN' ? 'red' : 'green'}`}>
                       {inc.status}
                     </span>
                   </td>
-                  <td>{new Date(inc.started_at).toLocaleString()}</td>
-                  <td>{inc.duration_display || '—'}</td>
-                  <td>{inc.user_reason || inc.auto_reason || '—'}</td>
+                  <td data-label="Started" className="table-cell-nowrap">{new Date(inc.started_at).toLocaleString()}</td>
+                  <td data-label="Duration" className="table-cell-nowrap">{inc.duration_display || '—'}</td>
+                  <td data-label="Reason">{inc.user_reason || inc.auto_reason || '—'}</td>
                 </tr>
               ))}
             </tbody>

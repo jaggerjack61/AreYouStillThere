@@ -121,10 +121,12 @@ export default function SMTPConfigPage() {
             <tbody>
               {configs.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.host}</td><td>{c.port}</td><td>{c.from_email}</td>
-                  <td>{c.use_tls ? '✓' : '—'}</td>
-                  <td><span className={`badge badge-${c.enabled ? 'green' : 'red'}`}>{c.enabled ? 'On' : 'Off'}</span></td>
-                  <td className="actions-cell">
+                  <td data-label="Host">{c.host}</td>
+                  <td data-label="Port" className="table-cell-nowrap">{c.port}</td>
+                  <td data-label="From">{c.from_email}</td>
+                  <td data-label="TLS" className="table-cell-nowrap">{c.use_tls ? '✓' : '—'}</td>
+                  <td data-label="Enabled"><span className={`badge badge-${c.enabled ? 'green' : 'red'}`}>{c.enabled ? 'On' : 'Off'}</span></td>
+                  <td data-label="Actions" className="actions-cell">
                     <button className="btn btn-sm btn-secondary" onClick={() => { setEditingId(c.id); setForm({ ...c, password: '' }); }}>Edit</button>
                     <button className="btn btn-sm btn-secondary" onClick={() => handleTest(c.id)}>Test</button>
                     <button className="btn btn-sm btn-danger" onClick={() => handleDelete(c.id)}>Delete</button>

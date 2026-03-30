@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import HoverPreviewText from '../../components/HoverPreviewText';
 import { REQUEST_LOG_PAGE_SIZE } from './constants';
 
 function formatResponseTime(value) {
@@ -20,7 +21,7 @@ function RequestLogDetails({ log }) {
 
   return (
     <details>
-      <summary>View details</summary>
+      <summary>View</summary>
       <div className="log-details-grid">{details.map(([label, value]) => <div key={label} className="log-details-item"><strong>{label}</strong><pre className="log-details-value">{value}</pre></div>)}</div>
     </details>
   );
@@ -29,14 +30,14 @@ function RequestLogDetails({ log }) {
 function RequestLogRow({ log, onPreview, serviceName }) {
   return (
     <tr>
-      <td>{formatDate(log.checked_at)}</td>
-      <td><Link to={`/services/${log.service}`}>{serviceName}</Link></td>
-      <td><span className={`badge badge-${log.is_successful ? 'green' : 'red'}`}>{log.is_successful ? 'SUCCESS' : 'FAILURE'}</span></td>
-      <td>{log.status_code ?? '-'}</td>
-      <td>{formatResponseTime(log.response_time_ms)}</td>
-      <td className="error-cell">{log.response_snippet || '-'}</td>
-      <td><button type="button" className="btn btn-sm btn-secondary" onClick={() => onPreview(log)}>View Content</button></td>
-      <td><RequestLogDetails log={log} /></td>
+      <td data-label="Checked At" className="table-cell-nowrap">{formatDate(log.checked_at)}</td>
+      <td data-label="Service"><Link to={`/services/${log.service}`}>{serviceName}</Link></td>
+      <td data-label="Result" className="table-cell-inline"><span className={`badge badge-${log.is_successful ? 'green' : 'red'}`}>{log.is_successful ? 'SUCCESS' : 'FAILURE'}</span></td>
+      <td data-label="Status Code" className="table-cell-inline">{log.status_code ?? '-'}</td>
+      <td data-label="Response Time" className="table-cell-inline">{formatResponseTime(log.response_time_ms)}</td>
+      <td data-label="Response Preview" className="request-logs-preview-cell"><HoverPreviewText className="request-logs-preview-text" panelClassName="request-logs-hover-card" text={log.response_snippet} truncateAt={118} /></td>
+      <td data-label="Response Body" className="table-cell-inline"><button type="button" className="btn btn-sm btn-secondary" onClick={() => onPreview(log)}>View Content</button></td>
+      <td data-label="Details"><RequestLogDetails log={log} /></td>
     </tr>
   );
 }

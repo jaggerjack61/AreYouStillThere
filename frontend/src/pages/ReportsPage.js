@@ -97,15 +97,15 @@ export default function ReportsPage() {
               <tbody>
                 {reports.map((r) => (
                   <tr key={r.service_id}>
-                    <td>{r.service_name}</td>
-                    <td>
+                    <td data-label="Service">{r.service_name}</td>
+                    <td data-label="Uptime %" className="table-cell-inline">
                       <span className={`badge badge-${r.uptime_percentage >= 99 ? 'green' : r.uptime_percentage >= 95 ? 'yellow' : 'red'}`}>
                         {r.uptime_percentage?.toFixed(1)}%
                       </span>
                     </td>
-                    <td>{r.avg_response_time?.toFixed(0) || '—'}ms</td>
-                    <td>{r.incident_count}</td>
-                    <td>{formatDuration(r.total_downtime_seconds)}</td>
+                    <td data-label="Avg Response" className="table-cell-inline">{r.avg_response_time?.toFixed(0) || '—'}ms</td>
+                    <td data-label="Incidents" className="table-cell-inline">{r.incident_count}</td>
+                    <td data-label="Total Downtime" className="table-cell-inline">{formatDuration(r.total_downtime_seconds)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { incidentsAPI, servicesAPI } from '../api';
+import HoverPreviewText from '../components/HoverPreviewText';
 
 export default function IncidentsPage() {
   const [incidents, setIncidents] = useState([]);
@@ -80,16 +81,16 @@ export default function IncidentsPage() {
             <tbody>
               {incidents.map((inc) => (
                 <tr key={inc.id}>
-                  <td>{inc.service_name || `Service #${inc.service}`}</td>
-                  <td>
+                  <td data-label="Service">{inc.service_name || `Service #${inc.service}`}</td>
+                  <td data-label="Status" className="table-cell-inline">
                     <span className={`badge badge-${inc.status === 'OPEN' ? 'red' : 'green'}`}>
                       {inc.status}
                     </span>
                   </td>
-                  <td>{new Date(inc.started_at).toLocaleString()}</td>
-                  <td>{inc.duration_display || '—'}</td>
-                  <td>{inc.auto_reason || '—'}</td>
-                  <td>
+                  <td data-label="Started" className="table-cell-nowrap">{new Date(inc.started_at).toLocaleString()}</td>
+                  <td data-label="Duration" className="table-cell-inline">{inc.duration_display || '—'}</td>
+                  <td data-label="Auto Reason" className="auto-reason-cell"><HoverPreviewText panelClassName="incident-hover-card" text={inc.auto_reason} truncateAt={80} /></td>
+                  <td data-label="Annotation" className="table-cell-inline">
                     {editing === inc.id ? (
                       <div className="inline-edit">
                         <input
@@ -109,7 +110,7 @@ export default function IncidentsPage() {
                       <span>{inc.user_reason || '—'}</span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Actions" className="actions-cell table-cell-inline">
                     {editing !== inc.id && (
                       <button
                         className="btn btn-sm btn-secondary"

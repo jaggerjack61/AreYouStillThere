@@ -103,13 +103,13 @@ export default function NotificationSettingsPage() {
             <tbody>
               {policies.map((p) => (
                 <tr key={p.id}>
-                  <td>{services.find((s) => s.id === p.service)?.name || p.service}</td>
-                  <td>{p.email_enabled ? '✓' : '—'}</td>
-                  <td>{p.notify_on_down ? '✓' : '—'}</td>
-                  <td>{p.notify_on_recovery ? '✓' : '—'}</td>
-                  <td>{p.cooldown_seconds}s</td>
-                  <td>{(p.recipient_emails || []).join(', ')}</td>
-                  <td className="actions-cell">
+                  <td data-label="Service">{services.find((s) => s.id === p.service)?.name || p.service}</td>
+                  <td data-label="Email" className="table-cell-nowrap">{p.email_enabled ? '✓' : '—'}</td>
+                  <td data-label="Down" className="table-cell-nowrap">{p.notify_on_down ? '✓' : '—'}</td>
+                  <td data-label="Recovery" className="table-cell-nowrap">{p.notify_on_recovery ? '✓' : '—'}</td>
+                  <td data-label="Cooldown" className="table-cell-nowrap">{p.cooldown_seconds}s</td>
+                  <td data-label="Recipients">{(p.recipient_emails || []).join(', ')}</td>
+                  <td data-label="Actions" className="actions-cell">
                     <button className="btn btn-sm btn-secondary" onClick={() => {
                       setEditingId(p.id);
                       setForm({ ...p, recipient_emails: (p.recipient_emails || []).join(', ') });

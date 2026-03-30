@@ -46,16 +46,16 @@ export default function NotificationLogsPage() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id}>
-                  <td>{new Date(log.sent_at).toLocaleString()}</td>
-                  <td>{services.find((s) => s.id === log.service)?.name || log.service}</td>
-                  <td><span className="badge badge-neutral">{log.event_type}</span></td>
-                  <td>
+                  <td data-label="Time" className="table-cell-nowrap">{new Date(log.sent_at).toLocaleString()}</td>
+                  <td data-label="Service">{services.find((s) => s.id === log.service)?.name || log.service}</td>
+                  <td data-label="Event" className="table-cell-inline"><span className="badge badge-neutral">{log.event_type}</span></td>
+                  <td data-label="Status" className="table-cell-inline">
                     <span className={`badge badge-${log.status === 'SENT' ? 'green' : log.status === 'FAILED' ? 'red' : 'yellow'}`}>
                       {log.status}
                     </span>
                   </td>
-                  <td>{(log.recipients || []).join(', ')}</td>
-                  <td className="error-cell">{log.error_message || '—'}</td>
+                  <td data-label="Recipients">{(log.recipients || []).join(', ')}</td>
+                  <td data-label="Error" className="error-cell">{log.error_message || '—'}</td>
                 </tr>
               ))}
             </tbody>

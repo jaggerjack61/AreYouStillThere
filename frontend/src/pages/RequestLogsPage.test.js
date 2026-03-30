@@ -188,6 +188,68 @@ describe('RequestLogsPage', () => {
     });
   });
 
+  test('uses the shared form field treatment for request log filters', async () => {
+    servicesAPI.list.mockResolvedValue({
+      data: [{ id: 7, name: 'Payments API' }],
+    });
+    checkResultsAPI.list.mockResolvedValue({
+      data: {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      },
+    });
+
+    const { container } = renderPage(['/request-logs']);
+
+    const serviceSelect = await screen.findByLabelText('Service');
+    const searchInput = screen.getByLabelText('Search');
+
+    expect(serviceSelect.closest('.form-field')).toBeInTheDocument();
+    expect(searchInput.closest('.form-field')).toBeInTheDocument();
+    expect(container.querySelector('.request-logs-control-shell')).not.toBeInTheDocument();
+  });
+
+  test('truncates long response previews and exposes the full value in a hover card trigger', async () => {
+    const preview = '<!doctype html><html><body>The origin returned a very long diagnostic payload that should stay out of the button column while still being readable on hover.</body></html>';
+
+    servicesAPI.list.mockResolvedValue({
+      data: [{ id: 7, name: 'Payments API' }],
+    });
+    checkResultsAPI.list.mockResolvedValue({
+      data: {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{
+          id: 14,
+          service: 7,
+          service_name: 'Payments API',
+          checked_at: '2026-03-30T09:00:00Z',
+          is_successful: false,
+          status_code: 504,
+          response_time_ms: 901,
+          response_snippet: preview,
+          error_message: 'Gateway timeout',
+          failure_reason: 'HTTP_ERROR',
+          network_status: 'edge: OK (200)',
+        }],
+      },
+    });
+
+    renderPage();
+
+    const trigger = await screen.findByLabelText(preview);
+
+    expect(trigger.textContent.endsWith('...')).toBe(true);
+    expect(trigger.textContent.length).toBeLessThan(preview.length);
+
+    fireEvent.focus(trigger);
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent(preview);
+  });
+
   test('shows request log details including response, time, and status code', async () => {
     servicesAPI.list.mockResolvedValue({
       data: [{ id: 7, name: 'Payments API' }],
@@ -232,6 +294,7 @@ describe('RequestLogsPage', () => {
     renderPage();
 
     expect(await screen.findByRole('link', { name: 'Payments API' })).toBeInTheDocument();
+    expect(screen.getByText(/^View$/)).toBeInTheDocument();
     expect(screen.getByText('503')).toBeInTheDocument();
     expect(screen.getByText('812ms')).toBeInTheDocument();
     expect(screen.getByText('{"error":"upstream timeout"}')).toBeInTheDocument();
