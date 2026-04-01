@@ -130,6 +130,27 @@ The frontend API base URL defaults to `http://localhost:8000/api` and can be ove
 
 Before using this project outside local development, move secrets and environment-specific settings out of source control and into environment variables or a dedicated config layer.
 
+## Docker Compose deployment
+
+The repository includes a production-oriented Docker Compose stack with PostgreSQL, Redis, Gunicorn, Celery worker, Celery beat, and an Nginx reverse proxy serving the React build.
+
+Quick start:
+
+```powershell
+copy .env.example .env
+docker compose up --build -d
+```
+
+The default published port is `18080`, so the application is available at `http://localhost:18080`.
+
+Useful commands:
+
+```powershell
+docker compose ps
+docker compose logs backend --tail 200
+docker compose down
+```
+
 ## Tests
 
 Backend:

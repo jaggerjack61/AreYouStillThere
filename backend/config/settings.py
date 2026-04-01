@@ -15,6 +15,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from config.runtime import build_database_config, env_flag, env_list
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -28,9 +30,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
+DEBUG = env_flag(os.environ.get('DEBUG'), False)
 
-ALLOWED_HOSTS = [h for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h]
+ALLOWED_HOSTS = env_list(
+    os.environ.get('ALLOWED_HOSTS'),
+    'localhost,127.0.0.1',
+)
 
 
 # Application definition
@@ -61,11 +66,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
-    if origin.strip()
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    os.environ.get('CORS_ALLOWED_ORIGINS'),
+    'http://localhost:3000,http://127.0.0.1:3000',
+)
+
+CSRF_TRUSTED_ORIGINS = env_list(os.environ.get('CSRF_TRUSTED_ORIGINS'))
 
 ROOT_URLCONF = 'config.urls'
 
@@ -90,12 +96,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+DATABASES = build_database_config(BASE_DIR, os.environ)
 
 
 # Password validation
@@ -132,7 +133,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/backend-static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = env_flag(os.environ.get('SECURE_SSL_REDIRECT'), False)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
