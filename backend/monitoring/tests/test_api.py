@@ -144,6 +144,52 @@ class ServiceAPITest(AuthMixin, APITestCase):
             self.assertIn('uptime_24h', entry)
             self.assertIn('avg_response_time_24h', entry)
 
+    def test_bulk_stats_query_count_is_constant_for_multiple_services(self):
+        services = [
+            self.service,
+            Service.objects.create(
+                name='Other API', url='https://other.example.com',
+            ),
+            Service.objects.create(
+                name='Third API', url='https://third.example.com',
+            ),
+        ]
+        now = timezone.now()
+
+        for index, service in enumerate(services):
+            CheckResult.objects.create(
+                service=service,
+                status_code=200,
+                response_time_ms=100 + index,
+                is_successful=True,
+            )
+            incident = Incident.objects.create(
+                service=service,
+                is_resolved=False,
+                status=IncidentStatus.OPEN,
+            )
+            Incident.objects.filter(pk=incident.pk).update(
+                started_at=now - timedelta(hours=1),
+            )
+
+        with self.assertNumQueries(4):
+            response = self.client.get(reverse('service-bulk-stats'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        stats_by_service = {
+            entry['service_id']: entry for entry in response.data
+        }
+        self.assertEqual(len(stats_by_service), len(services))
+        for index, service in enumerate(services):
+            self.assertEqual(
+                stats_by_service[service.pk]['avg_response_time_24h'],
+                100 + index,
+            )
+            self.assertEqual(
+                stats_by_service[service.pk]['incidents_7d'],
+                1,
+            )
+
     def test_unauthenticated_denied(self):
         self.client.force_authenticate(user=None)
         response = self.client.get(reverse('service-list'))
@@ -376,3 +422,58 @@ class ReportAPITest(AuthMixin, APITestCase):
         self.assertGreater(
             response.data[0]['total_downtime_seconds'], 0,
         )
+
+    def test_report_query_count_is_constant_for_multiple_services(self):
+        now = timezone.now()
+        day_ago = now - timedelta(days=1)
+        services = [
+            self.service,
+            Service.objects.create(
+                name='Other Report', url='https://other.example.com',
+            ),
+            Service.objects.create(
+                name='Third Report', url='https://third.example.com',
+            ),
+        ]
+        for service in services:
+            Service.objects.filter(pk=service.pk).update(
+                created_at=now - timedelta(days=7),
+            )
+            service.refresh_from_db()
+
+        for index, service in enumerate(services[1:], start=1):
+            CheckResult.objects.create(
+                service=service,
+                is_successful=index % 2 == 0,
+                status_code=200,
+                response_time_ms=100 + index,
+            )
+
+        for service in services:
+            incident = Incident.objects.create(
+                service=service,
+                is_resolved=True,
+                status=IncidentStatus.RESOLVED,
+                resolved_at=now - timedelta(minutes=30),
+                duration=timedelta(minutes=30),
+            )
+            Incident.objects.filter(pk=incident.pk).update(
+                started_at=now - timedelta(hours=1),
+            )
+
+        params = {'start': day_ago.isoformat(), 'end': now.isoformat()}
+        with self.assertNumQueries(3):
+            response = self.client.get(reverse('reports'), params)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        stats_by_service = {
+            entry['service_id']: entry for entry in response.data
+        }
+        self.assertEqual(len(stats_by_service), len(services))
+        for service in services:
+            self.assertEqual(
+                stats_by_service[service.pk]['incident_count'], 1,
+            )
+            self.assertGreater(
+                stats_by_service[service.pk]['total_downtime_seconds'], 0,
+            )

@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import filters, generics, permissions, status, viewsets
@@ -29,8 +29,11 @@ from monitoring.serializers import (
     ValidationRuleSerializer,
 )
 from monitoring.uptime import (
-    calculate_incident_downtime_seconds,
+    calculate_incident_downtime_seconds_from_incidents,
     calculate_incident_uptime,
+    calculate_incident_uptime_from_downtime,
+    calculate_incident_uptime_from_incidents,
+    incident_overlap_query,
 )
 
 
@@ -80,23 +83,84 @@ class ServiceViewSet(viewsets.ModelViewSet):
         day_ago = now - timedelta(days=1)
         week_ago = now - timedelta(days=7)
 
-        services = Service.objects.all()
-        data = []
-        for svc in services:
-            uptime = calculate_incident_uptime(svc, day_ago, now)
-            agg = CheckResult.objects.filter(
-                service=svc, checked_at__gte=day_ago,
-            ).aggregate(avg=Avg('response_time_ms'))
-            incidents_week = Incident.objects.filter(
-                service=svc, started_at__gte=week_ago,
-            ).count()
-            data.append({
-                'service_id': svc.pk,
-                'uptime_24h': round(uptime, 2),
-                'avg_response_time_24h': round(agg['avg'] or 0, 2),
-                'incidents_7d': incidents_week,
-            })
+        services = list(Service.objects.all())
+        service_ids = [service.pk for service in services]
+        avg_response_times = _get_avg_response_times(service_ids, day_ago)
+        incident_counts = _get_incident_counts(service_ids, week_ago)
+        uptime_incidents = _get_uptime_incidents(service_ids, day_ago, now)
+
+        data = [_build_bulk_stats_entry(
+            service,
+            day_ago,
+            now,
+            avg_response_times,
+            incident_counts,
+            uptime_incidents,
+        ) for service in services]
         return Response(data)
+
+
+def _build_bulk_stats_entry(
+    service, period_start, period_end, avg_response_times,
+    incident_counts, uptime_incidents,
+):
+    uptime = calculate_incident_uptime_from_incidents(
+        service,
+        period_start,
+        period_end,
+        uptime_incidents.get(service.pk, []),
+    )
+    return {
+        'service_id': service.pk,
+        'uptime_24h': round(uptime, 2),
+        'avg_response_time_24h': round(
+            avg_response_times.get(service.pk) or 0, 2,
+        ),
+        'incidents_7d': incident_counts.get(service.pk, 0),
+    }
+
+
+def _get_avg_response_times(service_ids, period_start):
+    if not service_ids:
+        return {}
+
+    rows = CheckResult.objects.filter(
+        service_id__in=service_ids,
+        checked_at__gte=period_start,
+    ).values('service_id').annotate(
+        avg_response_time=Avg('response_time_ms'),
+    ).order_by()
+    return {
+        row['service_id']: row['avg_response_time'] for row in rows
+    }
+
+
+def _get_incident_counts(service_ids, period_start):
+    if not service_ids:
+        return {}
+
+    rows = Incident.objects.filter(
+        service_id__in=service_ids,
+        started_at__gte=period_start,
+    ).values('service_id').annotate(
+        incident_count=Count('id'),
+    ).order_by()
+    return {
+        row['service_id']: row['incident_count'] for row in rows
+    }
+
+
+def _get_uptime_incidents(service_ids, period_start, period_end):
+    incidents_by_service = {service_id: [] for service_id in service_ids}
+    if not service_ids:
+        return incidents_by_service
+
+    incidents = Incident.objects.filter(
+        service_id__in=service_ids,
+    ).filter(incident_overlap_query(period_start, period_end)).order_by()
+    for incident in incidents:
+        incidents_by_service[incident.service_id].append(incident)
+    return incidents_by_service
 
 
 class ValidationRuleViewSet(viewsets.ModelViewSet):
@@ -195,6 +259,7 @@ class ReportView(generics.GenericAPIView):
         service_ids = request.query_params.getlist('service')
 
         now = timezone.now()
+        requested_start = _parse_boundary(start_param)
         period_end = _parse_boundary(end_param) or now
 
         check_filters = Q()
@@ -206,47 +271,105 @@ class ReportView(generics.GenericAPIView):
         services = Service.objects.all()
         if service_ids:
             services = services.filter(id__in=service_ids)
+        services = list(services)
 
-        data = []
-        for svc in services:
-            period_start = (
-                _parse_boundary(start_param) or svc.created_at
-            )
+        report_service_ids = [service.pk for service in services]
+        period_starts = _get_report_period_starts(
+            services, requested_start,
+        )
+        check_stats = _get_report_check_stats(
+            report_service_ids, check_filters,
+        )
+        incidents = _get_report_incidents(
+            report_service_ids, period_starts, period_end,
+        )
 
-            uptime = calculate_incident_uptime(
-                svc, period_start, period_end,
-            )
-            downtime = calculate_incident_downtime_seconds(
-                svc, period_start, period_end,
-            )
-
-            checks = svc.check_results.filter(check_filters)
-            total = checks.count()
-            success = checks.filter(is_successful=True).count()
-
-            avg_rt = checks.aggregate(
-                avg=Avg('response_time_ms'),
-            )['avg'] or 0
-
-            inc_count = svc.incidents.filter(
-                started_at__gte=period_start,
-                started_at__lte=period_end,
-            ).count()
-
-            data.append({
-                'service_id': svc.id,
-                'service_name': svc.name,
-                'total_checks': total,
-                'successful_checks': success,
-                'failed_checks': total - success,
-                'uptime_percentage': round(uptime, 2),
-                'avg_response_time': round(avg_rt, 2),
-                'incident_count': inc_count,
-                'total_downtime_seconds': int(downtime),
-            })
+        data = [_build_report_entry(
+            service,
+            period_starts[service.pk],
+            period_end,
+            check_stats,
+            incidents,
+        ) for service in services]
 
         serializer = self.get_serializer(data, many=True)
         return Response(serializer.data)
+
+
+def _get_report_period_starts(services, requested_start):
+    return {
+        service.pk: requested_start or service.created_at
+        for service in services
+    }
+
+
+def _get_report_check_stats(service_ids, check_filters):
+    if not service_ids:
+        return {}
+
+    rows = CheckResult.objects.filter(
+        service_id__in=service_ids,
+    ).filter(check_filters).values('service_id').annotate(
+        total_checks=Count('id'),
+        successful_checks=Count('id', filter=Q(is_successful=True)),
+        avg_response_time=Avg('response_time_ms'),
+    ).order_by()
+    return {row['service_id']: row for row in rows}
+
+
+def _get_report_incidents(service_ids, period_starts, period_end):
+    incidents_by_service = {service_id: [] for service_id in service_ids}
+    if not service_ids:
+        return incidents_by_service
+
+    earliest_start = min(period_starts.values())
+    incident_filters = incident_overlap_query(earliest_start, period_end) | Q(
+        started_at__gte=earliest_start,
+        started_at__lte=period_end,
+    )
+    incidents = Incident.objects.filter(
+        service_id__in=service_ids,
+    ).filter(incident_filters).order_by()
+    for incident in incidents:
+        incidents_by_service[incident.service_id].append(incident)
+    return incidents_by_service
+
+
+def _build_report_entry(
+    service, period_start, period_end, check_stats, incidents_by_service,
+):
+    stats = check_stats.get(service.pk, {})
+    total = stats.get('total_checks', 0)
+    success = stats.get('successful_checks', 0)
+    avg_rt = stats.get('avg_response_time') or 0
+    incidents = incidents_by_service.get(service.pk, [])
+    downtime = calculate_incident_downtime_seconds_from_incidents(
+        service, period_start, period_end, incidents,
+    )
+    uptime = calculate_incident_uptime_from_downtime(
+        service, period_start, period_end, downtime,
+    )
+
+    return {
+        'service_id': service.id,
+        'service_name': service.name,
+        'total_checks': total,
+        'successful_checks': success,
+        'failed_checks': total - success,
+        'uptime_percentage': round(uptime, 2),
+        'avg_response_time': round(avg_rt, 2),
+        'incident_count': _count_started_incidents(
+            incidents, period_start, period_end,
+        ),
+        'total_downtime_seconds': int(downtime),
+    }
+
+
+def _count_started_incidents(incidents, period_start, period_end):
+    return sum(
+        1 for incident in incidents
+        if period_start <= incident.started_at <= period_end
+    )
 
 
 def _parse_boundary(value):
