@@ -1,187 +1,159 @@
+<div align="center">
+
 # AreYouStillThere
 
-AreYouStillThere is a full-stack service monitoring application. It lets you register services, run HTTP/content checks, track incidents and uptime, and send email notifications for outages and recoveries.
+**Know when a service goes quiet.**
 
-## What it does
+Self-hosted service monitoring with HTTP checks, response validation, incident history, and email notifications.
 
-- Monitors HTTP endpoints with configurable methods, headers, request bodies, and timeouts
-- Supports validation rules for status codes and response content
-- Tracks check history, incidents, downtime, and simple service reports
-- Lets each service keep only the last N request logs, with N configured per service
-- Retries failed checks based on per-service retry policies
-- Sends email notifications through configurable SMTP settings
-- Stores notification policies and delivery logs per service
-- Uses JWT authentication for the API and a React dashboard for management
+![MIT](https://img.shields.io/badge/license-MIT-e85d3a)
+![React](https://img.shields.io/badge/frontend-React-149eca)
+![Django + Celery](https://img.shields.io/badge/backend-Django_%2B_Celery-092e20)
+![Docker Compose](https://img.shields.io/badge/deployment-Docker_Compose-2496ed)
 
-## Stack
+[Features](#features) · [Screenshots](#screenshots) · [Quick start](#quick-start) · [Development](#development)
 
-- Backend: Django 6, Django REST Framework, Simple JWT, Celery, django-celery-beat
-- Frontend: React, react-router-dom, axios, recharts
-- Database: SQLite for local development
-- Background services: Redis for Celery broker/result backend
+<img src="docs/screenshots/dashboard.jpg" alt="AreYouStillThere dashboard showing monitored services, uptime, response times, and an open incident" width="1000">
 
-## Repository layout
+</div>
 
-```text
-backend/
-  config/           Django project settings, URL routing, Celery bootstrap
-  monitoring/       Services, validation rules, retries, incidents, reports
-  notifications/    SMTP config, notification policies, delivery logs
-frontend/
-  src/              React app, pages, API client, auth context
+---
+
+Watch the services you depend on from one dashboard. Check availability and response content, see how performance changes over time, and keep a record of outages and recoveries.
+
+## Features
+
+| Feature | What it does |
+|---|---|
+| **Checks that fit your service** | Configure HTTP methods, headers, request bodies, timeouts, and check intervals. |
+| **Validate the response** | Check status codes and response content, with retry policies for failed checks. |
+| **See the history** | Follow response times, uptime, incidents, downtime, and aggregated reports. |
+| **Inspect individual requests** | Review recorded check results and response previews; set how many request logs each service retains. |
+| **Send outage and recovery emails** | Configure SMTP, choose notification policies and recipients, and inspect delivery logs. |
+| **Run on your infrastructure** | Django and React with Celery scheduling; the Compose stack includes PostgreSQL, Redis, Gunicorn, and Nginx. |
+
+## Screenshots
+
+<table align="center" width="100%">
+  <tr>
+    <td width="50%" align="center" valign="top"><img src="docs/screenshots/service.jpg" alt="Service details with response-time chart and recent uptime checks" width="560"><br><sub>Inspect response times and recent checks</sub></td>
+    <td width="50%" align="center" valign="top"><img src="docs/screenshots/reports.jpg" alt="Service report with uptime chart and response-time statistics" width="560"><br><sub>Compare uptime and performance</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top"><img src="docs/screenshots/incidents.jpg" alt="Incident list with open and resolved outages and annotations" width="560"><br><sub>Track and annotate incidents</sub></td>
+    <td width="50%" align="center" valign="top"><img src="docs/screenshots/service-form.jpg" alt="Service configuration form with URL, HTTP method, interval, and log retention" width="560"><br><sub>Configure checks for each service</sub></td>
+  </tr>
+</table>
+
+Screenshots show the application interface with demo services and check history.
+
+## Quick start
+
+### With Docker Compose
+
+```sh
+cp .env.example .env
 ```
 
-## Local development
+Set `SECRET_KEY`, `POSTGRES_PASSWORD`, and a valid `FIELD_ENCRYPTION_KEY` in `.env`. Generate a Fernet key in a Python environment with `cryptography` installed:
 
-### Prerequisites
-
-- Python 3.12+
-- Node.js 20+
-- npm
-- Redis, if you want scheduled/background checks to run through Celery
-
-### 1. Start the backend
-
-PowerShell:
-
-```powershell
-cd backend
-py -m venv venv
-.\venv\Scripts\Activate.ps1
-py -m pip install -r requirements.txt
-py manage.py migrate
-py manage.py runserver
+```sh
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-The API will be available at `http://localhost:8000/api/`.
+Then start the stack:
 
-### 2. Start the frontend
-
-```powershell
-cd frontend
-npm install
-npm start
-```
-
-The frontend will be available at `http://localhost:3000`.
-
-This app uses Create React App scripts, so the correct development command is `npm start`, not `npm run dev`.
-
-### 3. Run background checks with Celery
-
-The project is configured to use Redis at `redis://localhost:6379/0`.
-
-Start a worker:
-
-```powershell
-cd backend
-.\venv\Scripts\Activate.ps1
-celery -A config worker --loglevel=info --pool=solo
-```
-
-Start beat:
-
-```powershell
-cd backend
-.\venv\Scripts\Activate.ps1
-celery -A config beat --loglevel=info
-```
-
-Notes:
-
-- `--pool=solo` is the safest Celery worker mode on Windows.
-- Beat uses `django-celery-beat`, so periodic schedules are stored in the database.
-- Active services automatically get their own periodic task based on `check_interval_seconds`.
-- The task used for scheduled monitoring is `monitoring.tasks.run_service_check`.
-- If you do not run Redis/Celery, the web app and API still work, but automated background checks will not run.
-
-## Authentication
-
-- Register: `POST /api/auth/register/`
-- Login: `POST /api/auth/token/`
-- Refresh token: `POST /api/auth/token/refresh/`
-
-Most API routes require authentication with a Bearer token.
-
-## Main API areas
-
-- `/api/services/` for monitored services
-- `/api/services/{id}/stats/` for 24-hour service metrics
-- `/api/validation-rules/` for response validation rules
-- `/api/retry-policies/` for retry behavior
-- `/api/ping-endpoints/` for supplementary network reachability checks
-- `/api/check-results/` for historical check results
-- `/api/incidents/` for active and resolved incidents
-- `/api/reports/` for aggregated reporting
-- `/api/notifications/smtp-config/` for SMTP configuration, including test send
-- `/api/notifications/policies/` for notification preferences and recipients
-- `/api/notifications/logs/` for notification delivery history
-
-## Configuration notes
-
-Important local settings currently live in `backend/config/settings.py`:
-
-- `CORS_ALLOWED_ORIGINS`
-- `FIELD_ENCRYPTION_KEY`
-- `CELERY_BROKER_URL`
-- `CELERY_RESULT_BACKEND`
-
-The frontend API base URL defaults to `http://localhost:8000/api` and can be overridden with `REACT_APP_API_BASE`.
-
-Before using this project outside local development, move secrets and environment-specific settings out of source control and into environment variables or a dedicated config layer.
-
-## Docker Compose deployment
-
-The repository includes a production-oriented Docker Compose stack with PostgreSQL, Redis, Gunicorn, Celery worker, Celery beat, and an Nginx reverse proxy serving the React build.
-
-Quick start:
-
-```powershell
-copy .env.example .env
+```sh
 docker compose up --build -d
 ```
 
-The default published port is `18080`, so the application is available at `http://localhost:18080`.
+Open **http://localhost:18080** and register an account. Add a service, configure its validation and retry behavior, then set up SMTP and notification policies if you want email alerts.
 
-Useful commands:
+Compose starts the database, Redis, API, Celery worker, Celery beat, and the web proxy. Change `APP_PORT` in `.env` to use another port.
 
-```powershell
-docker compose ps
-docker compose logs backend --tail 200
-docker compose down
-```
+### Without Docker
 
-## Tests
+**Requirements:** Python 3.12+, Node.js 20+, npm, and Redis for background checks.
 
-Backend:
-
-```powershell
+```sh
 cd backend
-.\venv\Scripts\Activate.ps1
-py manage.py test
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
 ```
 
-Frontend:
+Set a real `SECRET_KEY` and a valid Fernet `FIELD_ENCRYPTION_KEY` in `backend/.env`; keep `DEBUG=True` for local development. Then:
 
-```powershell
+```sh
+python manage.py migrate
+python manage.py runserver
+```
+
+In another terminal:
+
+```sh
 cd frontend
-npx react-scripts test --watchAll=false
+npm ci
+npm start
 ```
 
-## Common workflow
+Open **http://localhost:3000**. The API runs at **http://localhost:8000/api/**. On Windows, activate the Python environment with `.venv\Scripts\Activate.ps1` and use `Copy-Item` to copy environment files.
 
-1. Start Redis if you need background monitoring.
-2. Start the Django API.
-3. Start the React frontend.
-4. Create a user from the registration screen or through the auth API.
-5. Add one or more services.
-6. Configure validation rules, retry policies, and notification policies.
-7. Service schedules are synced automatically in `django-celery-beat` from each service's `check_interval_seconds` value.
+For scheduled monitoring, run Redis and these processes in separate terminals from `backend/` with the Python environment active:
 
-## Current implementation notes
+```sh
+celery -A config worker --loglevel=info
+```
 
-- The backend defaults to SQLite, which is convenient for local development.
-- SMTP passwords are stored encrypted through the notifications app.
-- Service checks support both plain status-code validation and content-based validation.
-- Incident records are opened automatically on transition to DOWN and closed on recovery.
-- Saving or updating a service automatically creates or updates its Celery Beat schedule.
+```sh
+celery -A config beat --loglevel=info
+```
+
+Use `--pool=solo` for the worker on Windows. The dashboard and API can run without Celery, but scheduled checks require the worker and beat. Active services receive database-backed periodic tasks based on their check interval.
+
+## Configuration
+
+| Variable | Purpose |
+|---|---|
+| `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` | Django secret, development mode, and accepted hosts |
+| `FIELD_ENCRYPTION_KEY` | Fernet key for encrypted fields; retain the same key across restarts |
+| `DATABASE_URL` | Database connection; Compose supplies PostgreSQL |
+| `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` | Redis connections for background jobs |
+| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins |
+| `REACT_APP_API_BASE` | Frontend API base; local default is `http://localhost:8000/api` |
+
+See [.env.example](.env.example), [backend/.env.example](backend/.env.example), and [frontend/.env.example](frontend/.env.example) for the configuration templates.
+
+## API
+
+Authenticate through `POST /api/auth/register/`, `POST /api/auth/token/`, and `POST /api/auth/token/refresh/`. Protected requests use `Authorization: Bearer <access_token>`.
+
+| Resource | Purpose |
+|---|---|
+| `/api/services/` | Service configuration, individual stats, and bulk stats |
+| `/api/validation-rules/`, `/api/retry-policies/` | Response validation and retries |
+| `/api/ping-endpoints/` | Supplementary network reachability checks |
+| `/api/check-results/`, `/api/incidents/`, `/api/reports/` | Check history, outages, and reports |
+| `/api/notifications/smtp-config/` | SMTP configuration and test send |
+| `/api/notifications/policies/`, `/api/notifications/logs/` | Recipients, notification rules, and delivery history |
+
+## Development
+
+| Area | Commands |
+|---|---|
+| Frontend | `npm run build` and `npm test -- --watchAll=false` from `frontend/` |
+| Backend | `python manage.py test` from `backend/` |
+| Compose | `docker compose ps`, `docker compose logs backend --tail 200`, `docker compose down` |
+
+| Path | Contents |
+|---|---|
+| `backend/monitoring/` | Services, checks, retries, incidents, reports, and scheduling |
+| `backend/notifications/` | SMTP configuration, policies, and delivery logs |
+| `backend/config/` | Django configuration and Celery setup |
+| `frontend/src/pages/` | Dashboard, check history, reports, and notification screens |
+| `docs/screenshots/` | README screenshot tour |
+
+## License
+
+[MIT](LICENSE).
